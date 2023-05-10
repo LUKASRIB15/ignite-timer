@@ -2,7 +2,7 @@ import styled from 'styled-components'
 
 export const HomeContainer = styled.main`
   max-width: max-content;
-  margin: 4.5rem auto;
+  margin: 3.5rem auto;
 
   form {
     display: flex;
