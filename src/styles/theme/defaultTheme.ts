@@ -12,7 +12,7 @@ export const defaultTheme = {
 
   'status-yellow': '#FBA94C',
 
-  'red-dark': '#00875F',
+  'red-dark': '#7A1921',
   red: '#F03847',
   'status-red': '#AB222E',
 
