@@ -1,17 +1,21 @@
-import { ReactNode, createContext, useReducer, useState } from 'react'
+import {
+  ReactNode,
+  createContext,
+  useEffect,
+  useReducer,
+  useState,
+} from 'react'
+import { Cycle, cyclesReducers } from '../reducers/cycles/reducer'
+import {
+  createNewCycleAction,
+  interruptedCurrentCycleAction,
+  markCurrentCycleAsFinishedAction,
+} from '../reducers/cycles/actions'
+import { differenceInSeconds } from 'date-fns'
 
 interface CreateCycleData {
   task: string
   minutesAmount: number
-}
-
-interface Cycle {
-  id: string
-  task: string
-  minutesAmount: number
-  startDate: Date
-  interruptedDate?: Date
-  finishedDate?: Date
 }
 
 interface CycleContextProps {
@@ -31,73 +35,51 @@ interface CyclesContextProviderProps {
   children: ReactNode
 }
 
-interface CycleState {
-  cycles: Cycle[]
-  activeCycleId: string | null
-}
-
 export function CyclesContextProvider({
   children,
 }: CyclesContextProviderProps) {
   const [cyclesState, dispatch] = useReducer(
-    (state: CycleState, action: any) => {
-      if (action.type === 'CREATE_NEW_CYCLE') {
-        return {
-          ...state,
-          cycles: [...state.cycles, action.payload.newCycle],
-          activeCycleId: action.payload.newCycle.id,
-        }
-      }
-
-      if (action.type === 'MARK_CURRENT_CYCLE_AS_FINISHED') {
-        return {
-          ...state,
-          cycles: state.cycles.map((cycle) => {
-            if (cycle.id === action.payload.activeCycleId) {
-              return { ...cycle, finishedDate: new Date() }
-            } else {
-              return cycle
-            }
-          }),
-          activeCycleId: null,
-        }
-      }
-
-      if (action.type === 'INTERRUPTED_CURRENT_CYCLE') {
-        return {
-          ...state,
-          cycles: state.cycles.map((cycle) => {
-            if (cycle.id === action.payload.activeCycleId) {
-              return { ...cycle, interruptedDate: new Date() }
-            } else {
-              return cycle
-            }
-          }),
-          activeCycleId: null,
-        }
-      }
-
-      return state
-    },
+    cyclesReducers,
     {
       cycles: [],
       activeCycleId: null,
     },
-  )
+    (initialState) => {
+      const storedStateAsJSON = localStorage.getItem(
+        '@ignite-times:cycles-state-1.0.0',
+      )
 
-  const [amountSecondsPassed, setAmountSecondsPassed] = useState(0)
+      if (storedStateAsJSON) {
+        return JSON.parse(storedStateAsJSON)
+      }
+
+      return initialState
+    },
+  )
 
   const { cycles, activeCycleId } = cyclesState
 
   const activeCycle = cycles.find((cycle) => cycle.id === activeCycleId)
 
+  const [amountSecondsPassed, setAmountSecondsPassed] = useState(() => {
+    if (activeCycle) {
+      return differenceInSeconds(
+        new Date(),
+        new Date(activeCycle.startDate), // Converte para uma data caso seja uma string
+      )
+    }
+
+    return 0
+  })
+
+  useEffect(() => {
+    const stateJSON = JSON.stringify(cyclesState)
+
+    localStorage.setItem('@ignite-times:cycles-state-1.0.0', stateJSON)
+  }, [cyclesState])
+
   function markCurrentCycleAsFinished() {
-    dispatch({
-      type: 'MARK_CURRENT_CYCLE_AS_FINISHED',
-      payload: {
-        activeCycleId,
-      },
-    })
+    dispatch(markCurrentCycleAsFinishedAction())
 
     // setCycles((state) =>
     //   state.map((cycle) => {
@@ -122,12 +104,7 @@ export function CyclesContextProvider({
       minutesAmount: data.minutesAmount,
       startDate: new Date(),
     }
-    dispatch({
-      type: 'CREATE_NEW_CYCLE',
-      payload: {
-        newCycle,
-      },
-    })
+    dispatch(createNewCycleAction(newCycle))
 
     // setCycles((state) => [...state, newCycle])
     // setActiveCycleId(newCycle.id)
@@ -135,12 +112,7 @@ export function CyclesContextProvider({
   }
 
   function interruptedCurrentCycle() {
-    dispatch({
-      type: 'INTERRUPTED_CURRENT_CYCLE',
-      payload: {
-        activeCycleId,
-      },
-    })
+    dispatch(interruptedCurrentCycleAction())
 
     // setCycles(
     //   cycles.map((cycle) => {
